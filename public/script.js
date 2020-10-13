@@ -3,6 +3,8 @@ const videoGrid = document.getElementById("video-grid");
 const myVideo = document.createElement("video");
 myVideo.muted = true;
 
+const peers = {};
+
 var peer = new Peer(undefined, {
   path: "/peerjs",
   host: "/",
@@ -34,6 +36,11 @@ navigator.mediaDevices
     });
   });
 
+socket.on("user-disconnected", (userId) => {
+  console.log(userId);
+  if (peers[userId]) peers[userId].close();
+});
+
 peer.on("open", (id) => {
   console.log("peer id >>>", id);
   socket.emit("join-room", ROOM_ID, id);
@@ -46,6 +53,12 @@ const connectToNewUser = (userId, stream) => {
   call.on("stream", (userVideoStream) => {
     addVideoStream(video, userVideoStream);
   });
+
+  call.on("close", () => {
+    video.remove();
+  });
+
+  peers[userId] = call;
 };
 
 const addVideoStream = (video, stream) => {
@@ -55,3 +68,23 @@ const addVideoStream = (video, stream) => {
   });
   videoGrid.append(video);
 };
+
+let text = $("input");
+
+$("html").keydown((e) => {
+  if (e.which === 13 && text.val().length !== 0) {
+    socket.emit("message", text.val());
+    text.val("");
+  }
+});
+
+socket.on("createMessage", (message) => {
+  $("ul").append(`<li class="message"><b>user</b></br>${message}</li>`);
+  scrollToBottom();
+});
+
+const scrollToBottom = () => {
+  let d = $(".main__chatWindow");
+  d.scrollTop(d.prop("scrollHeight"));
+};
+
